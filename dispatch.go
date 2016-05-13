@@ -10,9 +10,62 @@ type Dispatch struct {
 	slave  *Slave
 }
 
+func IsSyncCommand(c []byte) bool {
+	for i, k := range c {
+		if i%2 == 0 && k <= 'z' && k >= 'a' {
+			continue
+		}
+		if i%2 == 1 && k <= 'Z' && k >= 'A' {
+			continue
+		}
+
+		return false
+	}
+
+	return true
+}
+
+func SetSyncCommand(c []byte) {
+	for i, k := range c {
+		if i%2 == 1 && k <= 'z' && k >= 'a' {
+			c[i] = c[i] - 0x20
+			continue
+		}
+		if i%2 == 0 && k <= 'Z' && k >= 'A' {
+			c[i] = c[i] + 0x20
+			continue
+		}
+	}
+}
+
+func CanSendToSlave(b []byte) bool {
+	cmd, ok := GetRedisCommand(b)
+	if !ok {
+		return false
+	}
+
+	fmt.Println("cmd is", string(cmd), len(cmd))
+
+	/* 不同步PING */
+	if strings.EqualFold(string(cmd), "PING") {
+		return false
+	}
+
+	if IsSyncCommand(cmd) {
+		return false
+	}
+
+	SetSyncCommand(cmd)
+	return true
+}
+
 func (d *Dispatch) ReadPayload(b []byte, n int) error {
 	fmt.Println("read payload:")
 	fmt.Println(string(b[:n]))
+
+	if !CanSendToSlave(buf[:n]) {
+		continue
+	}
 
 	err := d.slave.Sync(b[:n])
 	if err != nil {
