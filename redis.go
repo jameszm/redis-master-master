@@ -17,12 +17,12 @@ func Dial(addr string) (*Redis, error) {
 	var err error
 	r.conn, err = net.Dial("tcp", addr)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	r.addr = addr
 
-	return &r
+	return &r, nil
 }
 
 func (r *Redis) Close() {
@@ -30,13 +30,14 @@ func (r *Redis) Close() {
 }
 
 func (r *Redis) PING() error {
-	_, err := r.Send([]byte("PING\r\n"))
+	var err error
+	_, err = r.Send([]byte("PING\r\n"))
 	if err != nil {
 		return err
 	}
 
 	b := make([]byte, 4096)
-	_, err := r.Recv(b)
+	_, err = r.Recv(b)
 	if err != nil {
 		return err
 	}
@@ -51,7 +52,7 @@ func (r *Redis) ROLE() (string, error) {
 	return "master", nil
 }
 
-func (r *Redis) REPLCONF_ack(offset int64) error {
+func (r *Redis) REPLCONF_ack(offset int) error {
 	cmd := fmt.Sprintf("*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$%d\r\n%d\r\n", len(strconv.Itoa(offset)), offset)
 	_, err := r.Send([]byte(cmd))
 	if err != nil {
@@ -62,13 +63,15 @@ func (r *Redis) REPLCONF_ack(offset int64) error {
 }
 
 func (r *Redis) REPLCONF_capa_eof() error {
-	_, err := r.Send([]byte("REPLCONF capa eof\r\n"))
+	var err error
+
+	_, err = r.Send([]byte("REPLCONF capa eof\r\n"))
 	if err != nil {
 		return err
 	}
 
 	b := make([]byte, 4096)
-	_, err := r.Recv(b)
+	_, err = r.Recv(b)
 	if err != nil {
 		return err
 	}
@@ -77,13 +80,16 @@ func (r *Redis) REPLCONF_capa_eof() error {
 }
 
 func (r *Redis) REPLCONF_listen_port(port uint16) error {
-	_, err := r.Send([]byte("REPLCONF listening-port " + strconv.Itoa(port) + "\r\n"))
+	var err error
+
+	cmd := fmt.Sprintf("REPLCONF listening-port %d\r\n", port)
+	_, err = r.Send([]byte(cmd))
 	if err != nil {
 		return err
 	}
 
 	b := make([]byte, 4096)
-	_, err := r.Recv(b)
+	_, err = r.Recv(b)
 	if err != nil {
 		return err
 	}
@@ -91,8 +97,11 @@ func (r *Redis) REPLCONF_listen_port(port uint16) error {
 	return nil
 }
 
-func (r *Redis) PSYNC(masterId string, offset int64) error {
-	_, err := r.Send([]byte("PSYNC " + masterId + " " + strconv.Itoa(port) + "\r\n"))
+func (r *Redis) PSYNC(masterId string, offset int) error {
+	var err error
+
+	cmd := fmt.Sprintf("PSYNC %s %d\r\n", masterId, offset)
+	_, err = r.Send([]byte(cmd))
 	if err != nil {
 		return err
 	}
@@ -100,7 +109,7 @@ func (r *Redis) PSYNC(masterId string, offset int64) error {
 	time.Sleep(time.Millisecond * 100)
 
 	b := make([]byte, 4096)
-	_, err := r.Recv(b)
+	_, err = r.Recv(b)
 	if err != nil {
 		return err
 	}
@@ -110,12 +119,10 @@ func (r *Redis) PSYNC(masterId string, offset int64) error {
 
 func (r *Redis) Recv(b []byte) (int, error) {
 	n, err := r.conn.Read(b)
-	fmt.Println("Recv:", b)
 	return n, err
 }
 
 func (r *Redis) Send(b []byte) (int, error) {
-	fmt.Println("Send:", b)
 	n, err := r.conn.Write(b)
 	return n, err
 }
