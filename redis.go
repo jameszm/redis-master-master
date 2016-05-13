@@ -126,3 +126,62 @@ func (r *Redis) Send(b []byte) (int, error) {
 	n, err := r.conn.Write(b)
 	return n, err
 }
+
+/* 第二个\r\n开始，第三个\r\n结束 */
+func GetRedisCommand(b []byte) ([]byte, bool) {
+	s := 0
+	e := 0
+
+	for i := 1; i < len(b); i++ {
+		if b[i] != '\n' {
+			continue
+		}
+
+		if b[i-1] != '\r' {
+			continue
+		}
+
+		s = i + 1
+		break
+	}
+
+	if s == 0 || s >= len(b) {
+		return nil, false
+	}
+
+	for i := s; i < len(b); i++ {
+		if b[i] != '\n' {
+			continue
+		}
+
+		if b[i-1] != '\r' {
+			continue
+		}
+
+		s = i + 1
+		break
+	}
+
+	if s == 0 || s >= len(b) {
+		return nil, false
+	}
+
+	for i := s; i < len(b); i++ {
+		if b[i] != '\n' {
+			continue
+		}
+
+		if b[i-1] != '\r' {
+			continue
+		}
+
+		e = i - 1
+		break
+	}
+
+	if e == 0 {
+		return nil, false
+	}
+
+	return b[s:e], true
+}

@@ -7,18 +7,16 @@ import (
 
 type Dispatch struct {
 	master *Master
-	slaves []*Slave
+	slave  *Slave
 }
 
 func (d *Dispatch) ReadPayload(b []byte, n int) error {
 	fmt.Println("read payload:")
-	fmt.Println(string(b[:n-1]))
+	fmt.Println(string(b[:n]))
 
-	for _, s := range d.slaves {
-		err := s.Do(b[:n])
-		if err != nil {
-			fmt.Println(err.Error())
-		}
+	err := d.slave.Sync(b[:n])
+	if err != nil {
+		fmt.Println(err.Error())
 	}
 
 	return nil
@@ -26,8 +24,7 @@ func (d *Dispatch) ReadPayload(b []byte, n int) error {
 
 func (d *Dispatch) SetMaster(host string, port uint16) {
 	if d.master == nil {
-		var m Master
-		d.master = &m
+		d.master = new(Master)
 	}
 
 	d.master.MasterId = "?"
@@ -46,30 +43,21 @@ func (d *Dispatch) SetMaster(host string, port uint16) {
 	}
 }
 
-func (d *Dispatch) AddSlave(host string, port uint16) int {
-	var s Slave
-	s.Host = host
-	s.Port = port
-
-	if d.slaves == nil {
-		d.slaves = make([]*Slave, 0)
+func (d *Dispatch) SetSlave(host string, port uint16) {
+	if d.slave == nil {
+		d.slave = new(Slave)
 	}
 
-	d.slaves = append(d.slaves, &s)
-
-	return 0
+	d.slave.Host = host
+	d.slave.Port = port
 }
 
-func (d *Dispatch) Run() error {
+func (d *Dispatch) Start() error {
 	var err error
 
-	fmt.Println("slave len", len(d.slaves))
-
-	for _, s := range d.slaves {
-		err = s.ConnSlave()
-		if err != nil {
-			fmt.Println(err.Error())
-		}
+	err = d.slave.ConnSlave()
+	if err != nil {
+		fmt.Println(err.Error())
 	}
 
 	err = d.master.SlaveOf()
@@ -78,17 +66,22 @@ func (d *Dispatch) Run() error {
 		return err
 	}
 
-	time.Sleep(time.Second * 3000)
-
 	return nil
 }
 
-/*
+func (d *Dispatch) Stop() {
+}
+
 func main() {
 	var d Dispatch
-	d.SetMaster("127.0.0.1", 6001)
-	d.AddSlave("127.0.0.1", 6002)
+	/*
+		d.SetMaster("127.0.0.1", 6001)
+		d.SetSlave("127.0.0.1", 6002)
+	*/
+	d.SetMaster("127.0.0.1", 6002)
+	d.SetSlave("127.0.0.1", 6001)
 
-	d.Run()
+	d.Start()
+
+	time.Sleep(time.Second * 3000)
 }
-*/

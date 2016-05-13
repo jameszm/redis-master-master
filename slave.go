@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 )
 
 type Slave struct {
@@ -10,6 +11,55 @@ type Slave struct {
 
 	addr  string
 	redis *Redis
+}
+
+func IsSyncCommand(c []byte) bool {
+	for i, k := range c {
+		if i%2 == 0 && k <= 'z' && k >= 'a' {
+			continue
+		}
+		if i%2 == 1 && k <= 'Z' && k >= 'A' {
+			continue
+		}
+
+		return false
+	}
+
+	return true
+}
+
+func SetSyncCommand(c []byte) {
+	for i, k := range c {
+		if i%2 == 1 && k <= 'z' && k >= 'a' {
+			c[i] = c[i] - 0x20
+			continue
+		}
+		if i%2 == 0 && k <= 'Z' && k >= 'A' {
+			c[i] = c[i] + 0x20
+			continue
+		}
+	}
+}
+
+func CanSendToSlave(b []byte) bool {
+	cmd, ok := GetRedisCommand(b)
+	if !ok {
+		return false
+	}
+
+	fmt.Println("cmd is", string(cmd), len(cmd))
+
+	/* 不同步PING */
+	if strings.EqualFold(string(cmd), "PING") {
+		return false
+	}
+
+	if IsSyncCommand(cmd) {
+		return false
+	}
+
+	SetSyncCommand(cmd)
+	return true
 }
 
 func (s *Slave) ConnSlave() error {
@@ -34,9 +84,13 @@ func (s *Slave) ConnSlave() error {
 	return nil
 }
 
-func (s *Slave) Do(b []byte) error {
+func (s *Slave) Sync(b []byte) error {
 	var err error
 	var n int
+
+	if !CanSendToSlave(b) {
+		return nil
+	}
 
 	fmt.Println("slave do")
 	fmt.Println(string(b))
@@ -56,19 +110,3 @@ func (s *Slave) Do(b []byte) error {
 
 	return nil
 }
-
-/*
-func main() {
-	var s Slave
-	s.Host = "127.0.0.1"
-	s.Port = 6002
-
-	err := s.ConnSlave()
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-
-	s.Do([]byte("*1\r\n$4\r\nPING\r\n"))
-	//s.Do([]byte("PING"))
-}
-*/
