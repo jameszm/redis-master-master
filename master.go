@@ -69,7 +69,7 @@ func (m *Master) SlaveOf() error {
 	}
 
 	/* 定时执行REPLCONF ACK xxx */
-	m.offset = 1
+	m.offset = 0
 	m.replTimer = time.NewTimer(time.Millisecond * 500)
 	go m.replconfCron()
 

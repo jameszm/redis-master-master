@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"time"
+	"strings"
 )
 
 type Dispatch struct {
@@ -63,8 +63,8 @@ func (d *Dispatch) ReadPayload(b []byte, n int) error {
 	fmt.Println("read payload:")
 	fmt.Println(string(b[:n]))
 
-	if !CanSendToSlave(buf[:n]) {
-		continue
+	if !CanSendToSlave(b[:n]) {
+		return nil
 	}
 
 	err := d.slave.Sync(b[:n])
@@ -75,13 +75,29 @@ func (d *Dispatch) ReadPayload(b []byte, n int) error {
 	return nil
 }
 
-func (d *Dispatch) SetMaster(host string, port uint16) {
+func (d *Dispatch) GetStatus() (masterId string, offset int) {
+	masterId = d.master.MasterId
+	if d.master.BaseOffset == -1 {
+		offset = d.master.offset
+	} else {
+		offset = d.master.BaseOffset + d.master.offset
+	}
+
+	return
+}
+
+func (d *Dispatch) SetMaster(host string, port uint16, masterId string, offset int) {
 	if d.master == nil {
 		d.master = new(Master)
 	}
 
-	d.master.MasterId = "?"
-	d.master.BaseOffset = -1
+	if masterId == "" {
+		d.master.MasterId = "?"
+		d.master.BaseOffset = -1
+	} else {
+		d.master.MasterId = masterId
+		d.master.BaseOffset = offset
+	}
 	d.master.Port = port
 	d.master.Host = host
 
@@ -125,12 +141,11 @@ func (d *Dispatch) Start() error {
 func (d *Dispatch) Stop() {
 }
 
+/*
 func main() {
 	var d Dispatch
-	/*
-		d.SetMaster("127.0.0.1", 6001)
-		d.SetSlave("127.0.0.1", 6002)
-	*/
+	//d.SetMaster("127.0.0.1", 6001)
+	//d.SetSlave("127.0.0.1", 6002)
 	d.SetMaster("127.0.0.1", 6002)
 	d.SetSlave("127.0.0.1", 6001)
 
@@ -138,3 +153,4 @@ func main() {
 
 	time.Sleep(time.Second * 3000)
 }
+*/

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"time"
 )
 
 type Redis struct {
@@ -106,10 +105,17 @@ func (r *Redis) PSYNC(masterId string, offset int) error {
 		return err
 	}
 
-	time.Sleep(time.Millisecond * 100)
+	var n int
 
 	b := make([]byte, 4096)
-	_, err = r.Recv(b)
+	n, err = r.Recv(b)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(string(b[:n]))
+
+	n, err = r.Recv(b)
 	if err != nil {
 		return err
 	}
